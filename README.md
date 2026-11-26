@@ -60,12 +60,15 @@ The free tier sleeps after 15 minutes without use, so the first visit after that
 
 ## Models, speed and cost
 
-The app tries these Gemini models in order (`GEMINI_MODELS`). If one is busy, out of quota or takes longer than 75 seconds, it moves on to the next:
+The app tries these Gemini models in order (`GEMINI_MODELS`). To keep scans fast:
+- If a model is busy, out of quota or not answering, the next one is tried at once, and the failing model is skipped for a while (1 minute if busy, 10 minutes if out of quota).
+- If a model hasn't answered after 20 seconds (45 for Pro), a backup model starts in parallel and whichever answers first is used.
+- The Hindi and English voices start being made as soon as the doctor approves, so they are usually ready by the time anyone presses play.
 
 1. `gemini-pro-latest`: best at messy handwriting. **Only works once billing is turned on.**
 2. `gemini-3-flash-preview`, `gemini-flash-latest`, `gemini-3.8-flash`, `gemini-3.5-flash`: these work on the free tier.
 
-On the free tier, Google gives lower priority when demand is high, so a scan can take 1–2 minutes or fail with "try again". With billing on, you get Pro and faster answers, and each scan costs only a few rupees. The review screen shows which model read each prescription.
+A scan usually takes 10–30 seconds. On the free tier, Google gives lower priority when demand is high, so it can occasionally take longer or fail with "try again". With billing on, you get Pro and faster answers, and each scan costs only a few rupees. The review screen shows which model read each prescription.
 
 ## Files
 

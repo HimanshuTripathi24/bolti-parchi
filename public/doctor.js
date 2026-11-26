@@ -222,7 +222,7 @@ $("readBtn").onclick = async () => {
   const btn = $("readBtn");
   const status = $("readStatus");
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Reading… (can take 1–2 minutes)';
+  btn.innerHTML = '<span class="spinner"></span> Reading… (usually 10–30 seconds)';
   status.textContent = "";
   try {
     let body, refUrl = null;

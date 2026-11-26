@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { extractPrescription, demoResult, hasApiKey, UserFacingError, GeminiError } from "./lib/extract.js";
 import { makeToken, readToken } from "./lib/tokens.js";
-import { hasTts, synthesize } from "./lib/tts.js";
+import { hasTts, getAudio } from "./lib/tts.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 const APP_PASSWORD = process.env.APP_PASSWORD || "";
@@ -77,6 +77,7 @@ function passwordOk(req) {
   return given.length === expected.length && crypto.timingSafeEqual(given, expected);
 }
 
+const audioKey = (token) => crypto.createHash("sha256").update(token).digest("base64url");
 const cleanText = (s, max) => (typeof s === "string" ? s.trim().slice(0, max) : "");
 
 // --- API handlers ---
@@ -109,7 +110,14 @@ const api = {
     if (!en || !hi) return [400, { error: "Both English and Hindi scripts are needed." }];
     if (body.approved !== true) return [400, { error: "Doctor approval is required." }];
     const days = Math.min(Math.max(Number(body.days) || LINK_DAYS, 1), 90);
-    return makeToken({ en, hi, days });
+    const out = makeToken({ en, hi, days });
+    if (hasTts()) {
+      // Start making both voices now, so they are ready when the doctor or patient presses play.
+      const key = audioKey(out.token);
+      getAudio(key, hi, "hi").catch(() => {});
+      getAudio(key, en, "en").catch(() => {});
+    }
+    return out;
   },
 
   "POST /api/open": async (req, ip) => {
@@ -134,7 +142,7 @@ const api = {
       return [400, { error: err.message }];
     }
     const lang = body.lang === "hi" ? "hi" : "en";
-    const wav = await synthesize(p[lang], lang);
+    const wav = await getAudio(audioKey(body.token), p[lang], lang);
     return [200, wav, { "Content-Type": "audio/wav" }];
   },
 };
