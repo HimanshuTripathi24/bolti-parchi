@@ -3,7 +3,7 @@ import { speak, stopSpeaking } from "./speak.js";
 
 const $ = (id) => document.getElementById(id);
 const MAX_EDGE = 2576; // long edge sent to Gemini; enough detail for handwriting
-const MAX_B64 = 4.5 * 1024 * 1024; // keeps uploads small (Gemini inline limit is 20 MB per request)
+const MAX_B64 = 3.3 * 1024 * 1024; // keeps each upload under Vercel's 4.5 MB request limit
 
 const FORMS = ["tablet", "capsule", "syrup", "suspension", "drops", "injection", "ointment", "cream", "gel", "lotion", "powder", "sachet", "inhaler", "spray", "suppository", "mouthwash", "soap", "other"];
 const TIMES = [["morning", "Morning"], ["afternoon", "Afternoon"], ["evening", "Evening"], ["night", "Night"], ["bedtime", "Bedtime"]];

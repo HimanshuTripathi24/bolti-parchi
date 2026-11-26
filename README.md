@@ -49,7 +49,15 @@ npm start
 
 Open http://localhost:3000. Without an API key it runs in **demo mode**: you can try every screen, but “Read prescription” returns a sample result.
 
-## Put it online (Render, free tier)
+## Put it online on Vercel (recommended: no sleeping)
+
+1. On https://vercel.com, choose **Add New → Project**, import the GitHub repository, and leave the framework as **Other**. `vercel.json` sets up everything else: Mumbai region, routing, security headers, and up to 5 minutes per scan.
+2. Under **Environment Variables**, add `GEMINI_API_KEY`, `APP_PASSWORD` and `LINK_SECRET` (a long random string, which must never change).
+3. Click **Deploy**. Every push to GitHub redeploys automatically.
+
+Vercel limits each request and response to 4.5 MB, so the app keeps photo uploads under about 3.3 MB and sends very long voice notes at a lower sound quality.
+
+## Or put it online on Render (free tier sleeps)
 
 1. Put this folder in a GitHub repository (private is fine).
 2. On https://render.com, choose **New → Blueprint** and pick the repository. `render.yaml` sets everything up and creates `LINK_SECRET` for you.
@@ -74,7 +82,9 @@ A scan usually takes 10–30 seconds. On the free tier, Google gives lower prior
 
 | File | What it does |
 |---|---|
-| `server.js` | Web server and API (no framework, no dependencies) |
+| `server.js` | Runs the site as a normal Node server (local, Render) |
+| `lib/app.js` | All request handling (shared by `server.js` and Vercel) |
+| `api/index.js`, `vercel.json` | Vercel function and settings |
 | `lib/extract.js` | The Gemini prompt, output format and model fallback for reading prescriptions |
 | `lib/tokens.js` | Signed, expiring patient links |
 | `lib/tts.js` | Natural voice with Gemini text-to-speech |

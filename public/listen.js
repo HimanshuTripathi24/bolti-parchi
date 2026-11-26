@@ -11,6 +11,17 @@ const UI = {
   en: { title: "Listen to your prescription", sub: "Choose a language and listen as many times as you need.", play: "▶ Play", playing: "Playing…", done: "Finished. Press ▶ to listen again.", stop: "■ Stop", expires: "This link works until", loadingAudio: "Preparing audio…" },
 };
 
+/** Fetches the natural-voice audio once per language; the promise is reused. */
+function loadAudio(lang) {
+  if (!audioCache[lang]) {
+    audioCache[lang] = fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, lang }) })
+      .then((res) => { if (!res.ok) throw new Error("tts"); return res.blob(); })
+      .then((blob) => URL.createObjectURL(blob));
+    audioCache[lang].catch(() => { delete audioCache[lang]; });
+  }
+  return audioCache[lang];
+}
+
 function fail(msg) {
   $("loading").classList.add("hidden");
   $("error").classList.remove("hidden");
@@ -26,6 +37,7 @@ async function open() {
   $("loading").classList.add("hidden");
   $("patient").classList.remove("hidden");
   select("hi");
+  if (rx.tts) loadAudio("hi").catch(() => {}); // start preparing the Hindi voice while the patient reads
 }
 
 function select(l) {
@@ -57,14 +69,10 @@ async function play() {
   if (rx.tts) {
     // Natural voice from the server, shown as a normal audio player (pause, seek, replay).
     try {
-      if (!audioCache[lang]) {
-        $("speechStatus").textContent = t.loadingAudio;
-        const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, lang }) });
-        if (!res.ok) throw new Error("tts");
-        audioCache[lang] = URL.createObjectURL(await res.blob());
-      }
+      $("speechStatus").textContent = t.loadingAudio;
+      const url = await loadAudio(lang);
       const a = $("audio");
-      if (a.src !== audioCache[lang]) a.src = audioCache[lang];
+      if (a.src !== url) a.src = url;
       a.classList.remove("hidden");
       a.currentTime = 0;
       await a.play();
