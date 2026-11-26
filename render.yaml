@@ -1,0 +1,23 @@
+# One-click setup on Render (render.com): New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: bolti-parchi
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: LINK_SECRET
+        generateValue: true
+      - key: GOOGLE_TTS_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-opus-5-5
+      - key: LINK_DAYS
+        value: "30"

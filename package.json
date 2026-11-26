@@ -1,0 +1,17 @@
+{
+  "name": "bolti-parchi",
+  "version": "1.0.0",
+  "description": "Doctor-approved bilingual (English/Hindi) audio prescriptions. Claude reads the handwriting, the doctor verifies, the patient listens.",
+  "type": "module",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0"
+  }
+}

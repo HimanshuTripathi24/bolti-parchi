@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>आपकी पर्ची · Your prescription</title>
+<meta name="theme-color" content="#0b6873">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap mast"><div class="bubble">🔊</div><div><h1>Bolti Parchi · बोलती पर्ची</h1><p>अपनी पर्ची सुनें · Listen to your prescription</p></div></div></header>
+<main class="wrap">
+  <section class="card patient" id="loading"><p>Loading… / लोड हो रहा है…</p></section>
+  <section class="card patient hidden" id="error"><div class="voice">⚠️</div><h2 id="errorText"></h2></section>
+  <section class="card patient hidden" id="patient">
+    <div class="voice">🔊</div>
+    <span class="pill-ok">✓ डॉक्टर द्वारा जांचा गया · Checked by your doctor</span>
+    <h2 id="title">अपनी पर्ची सुनें</h2>
+    <p class="muted" id="subtitle">भाषा चुनें और जितनी बार चाहें सुनें।</p>
+    <div class="langs"><button id="hi" class="on">हिन्दी</button><button id="en">English</button></div>
+    <button id="play" class="primary play">▶ सुनें</button>
+    <audio id="audio" controls class="hidden"></audio>
+    <div class="row">
+      <button id="stop" class="hidden">■ Stop</button>
+    </div>
+    <div id="speechStatus" class="status" role="status"></div>
+    <div id="script" class="script" lang="hi"></div>
+    <p class="muted" id="expires"></p>
+  </section>
+</main>
+<script type="module" src="/listen.js"></script>
+</body>
+</html>

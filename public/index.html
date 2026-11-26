@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Bolti Parchi · Doctor</title>
+<meta name="theme-color" content="#0b6873">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap mast"><div class="bubble">🔊</div><div><h1>Bolti Parchi · बोलती पर्ची</h1><p>Scan → Doctor verifies → Patient listens</p></div></div></header>
+
+<main class="wrap">
+  <div id="demoBanner" class="notice warn hidden"><b>Demo mode:</b> no Claude API key is set on the server, so “Read prescription” returns a sample prescription instead of reading yours.</div>
+
+  <!-- Login -->
+  <section id="login" class="card hidden">
+    <div class="step"><span class="num">🔒</span><h2>Doctor sign-in</h2></div>
+    <label for="pw">Clinic password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="row"><button id="loginBtn" class="primary">Sign in</button></div>
+    <div id="loginStatus" class="status" role="status"></div>
+  </section>
+
+  <div id="app" class="hidden">
+    <!-- Step 1 -->
+    <section class="card">
+      <div class="step"><span class="num">1</span><h2>Add the prescription</h2></div>
+      <div class="tabs" role="tablist">
+        <button id="tabPhoto" class="on" role="tab">📷 Photo</button>
+        <button id="tabText" role="tab">⌨ Type or paste text</button>
+      </div>
+
+      <div id="photoPane">
+        <div class="row">
+          <label class="btn primary" for="camera">📷 Take photo</label>
+          <input id="camera" type="file" accept="image/*" capture="environment" class="hidden">
+          <label class="btn" for="gallery">🖼 Choose image</label>
+          <input id="gallery" type="file" accept="image/*" class="hidden">
+        </div>
+        <div id="editorWrap" class="hidden">
+          <p class="muted">Drag a box around the <b>medicines only</b> (leave out the patient’s name and details). A tight crop also reads better.</p>
+          <div class="row">
+            <button id="rotL" class="small">⟲ Rotate</button>
+            <button id="rotR" class="small">⟳ Rotate</button>
+            <button id="clearCrop" class="small">Clear box</button>
+            <label class="inline"><input id="enhance" type="checkbox"> Boost contrast</label>
+          </div>
+          <div class="editor" id="editor"><canvas id="canvas"></canvas><div id="cropbox" class="cropbox hidden"></div></div>
+        </div>
+      </div>
+
+      <div id="textPane" class="hidden">
+        <label for="rxText">Prescription text</label>
+        <textarea id="rxText" placeholder="e.g.&#10;Tab Pan 40 1-0-0 BF x 5d&#10;Tab Augmentin 625 BD AF x 5 days&#10;Syp Cremaffin 10ml HS"></textarea>
+        <div class="row"><label class="btn small" for="txtFile">📄 Load .txt file</label><input id="txtFile" type="file" accept=".txt,text/plain" class="hidden"></div>
+        <p class="muted">Don’t type the patient’s name or phone number.</p>
+      </div>
+
+      <div class="row"><button id="readBtn" class="primary" disabled>✨ Read prescription</button></div>
+      <div id="readStatus" class="status" role="status"></div>
+    </section>
+
+    <!-- Step 2 -->
+    <section id="reviewCard" class="card hidden">
+      <div class="step"><span class="num">2</span><h2>Check every medicine against the prescription</h2></div>
+      <div id="notRx" class="notice bad hidden">This doesn’t look like a prescription. Check the photo.</div>
+      <div id="unreadable" class="notice bad hidden"></div>
+      <p class="muted">Red = AI unsure, yellow = partly unsure. Fix anything wrong, then tick “checked” on each medicine.</p>
+      <div class="review">
+        <div class="ref">
+          <img id="refImg" class="hidden" alt="Prescription being checked">
+          <label for="transcription">What the AI read (as written)</label>
+          <textarea id="transcription" class="tall" readonly></textarea>
+        </div>
+        <div>
+          <div id="meds"></div>
+          <button id="addMed" class="small">＋ Add medicine</button>
+          <div class="grid2">
+            <div><label for="advice">Other advice (English, one per line)</label><textarea id="advice"></textarea></div>
+            <div><label for="adviceHi">अन्य सलाह (हिन्दी, हर लाइन में एक)</label><textarea id="adviceHi" lang="hi"></textarea></div>
+          </div>
+          <div class="grid2">
+            <div><label for="followUp">Follow-up (English)</label><input id="followUp" type="text" placeholder="after 7 days"></div>
+            <div><label for="followUpHi">दोबारा दिखाना (हिन्दी)</label><input id="followUpHi" type="text" lang="hi" placeholder="7 दिन बाद"></div>
+          </div>
+          <div class="row"><button id="makeScripts" class="primary">Make patient scripts →</button></div>
+          <div id="reviewStatus" class="status" role="status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3 -->
+    <section id="scriptCard" class="card hidden">
+      <div class="step"><span class="num">3</span><h2>Approve what the patient will hear</h2></div>
+      <p class="muted">You can edit the wording. This exact text is what gets spoken.</p>
+      <div class="grid2">
+        <div><label for="enScript">English</label><textarea id="enScript" class="tall"></textarea></div>
+        <div><label for="hiScript">हिन्दी</label><textarea id="hiScript" class="tall" lang="hi"></textarea></div>
+      </div>
+      <div class="row"><button id="previewEn" class="small">▶ Hear English</button><button id="previewHi" class="small">▶ हिन्दी सुनें</button><button id="previewStop" class="small">■ Stop</button></div>
+      <div class="check"><input type="checkbox" id="c1"><label for="c1">Drug names and strengths confirmed against the original</label></div>
+      <div class="check"><input type="checkbox" id="c2"><label for="c2">Dose, frequency, timing (food) and duration confirmed</label></div>
+      <div class="check"><input type="checkbox" id="c3"><label for="c3">Unclear abbreviations clarified; English and Hindi wording checked</label></div>
+      <div class="row">
+        <label class="inline" for="days">Link valid for <input id="days" type="number" min="1" max="90" value="30"> days</label>
+        <button id="approveBtn" class="primary">✓ Approve and create patient link</button>
+      </div>
+      <div id="approveStatus" class="status" role="status"></div>
+    </section>
+
+    <!-- Step 4 -->
+    <section id="shareCard" class="card hidden">
+      <div class="step"><span class="num">4</span><h2>Send to the patient</h2></div>
+      <div class="notice ok">Approved. The link works until <b id="expiry"></b>. Nothing about the patient is stored on the server; the approved text lives only inside this link.</div>
+      <div id="link" class="linkbox"></div>
+      <div class="row">
+        <button id="shareBtn" class="primary">📤 Share link (WhatsApp, SMS…)</button>
+        <button id="copyBtn">📋 Copy link</button>
+        <a id="openLink" class="btn" target="_blank" rel="noopener">👂 Open patient page</a>
+      </div>
+      <div id="mp3Row" class="row hidden">
+        <button id="mp3Hi">⬇ Hindi voice note (MP3)</button>
+        <button id="mp3En">⬇ English voice note (MP3)</button>
+      </div>
+      <div id="shareStatus" class="status" role="status"></div>
+      <div class="row"><button id="newRx">＋ New prescription</button></div>
+    </section>
+  </div>
+</main>
+<script type="module" src="/doctor.js"></script>
+</body>
+</html>
