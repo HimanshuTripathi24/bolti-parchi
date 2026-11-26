@@ -32,7 +32,9 @@ export async function speak(text, lang, cb = {}) {
   const tag = lang === "hi" ? "hi-IN" : "en-IN";
   const matching = voices.filter((v) => v.lang.replace("_", "-").toLowerCase().startsWith(lang));
   if (lang === "hi" && voices.length && !matching.length) {
-    return cb.onerror?.("No Hindi voice on this phone. Install it in Settings → Text-to-speech → Google → Hindi.");
+    return cb.onerror?.(/Windows/i.test(navigator.userAgent)
+      ? "This computer has no Hindi voice. Add one in Settings → Time & language → Speech → Add voices → Hindi."
+      : "No Hindi voice on this phone. Install it in Settings → Text-to-speech → Google → Hindi.");
   }
   const voice = matching.find((v) => v.lang.replace("_", "-").toLowerCase() === tag.toLowerCase()) || matching[0] || null;
   const sentences = text.split(/(?<=[.।!?\n])\s+/).map((s) => s.trim()).filter(Boolean);

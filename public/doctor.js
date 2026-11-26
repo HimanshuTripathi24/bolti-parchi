@@ -385,9 +385,42 @@ for (const id of ["enScript", "hiScript"]) $(id).addEventListener("input", () =>
   $("shareCard").classList.add("hidden");
   for (const c of ["c1", "c2", "c3"]) $(c).checked = false;
 });
-$("previewEn").onclick = () => speak($("enScript").value, "en", { onerror: (m) => ($("approveStatus").textContent = m) });
-$("previewHi").onclick = () => speak($("hiScript").value, "hi", { onerror: (m) => ($("approveStatus").textContent = m) });
-$("previewStop").onclick = stopSpeaking;
+// Preview with the natural voice the patient will hear; fall back to this device's own voice.
+const previewUrls = {};
+async function preview(lang) {
+  const text = $(lang === "hi" ? "hiScript" : "enScript").value.trim();
+  const status = $("approveStatus");
+  const a = $("previewAudio");
+  stopPreview();
+  if (!text) return;
+  if (config.tts) {
+    const key = `${lang}
+${text}`;
+    try {
+      if (!previewUrls[key]) {
+        status.textContent = lang === "hi" ? "हिन्दी आवाज़ तैयार हो रही है…" : "Preparing the voice…";
+        const res = await api("/api/preview-voice", { text, lang }, { raw: true });
+        previewUrls[key] = URL.createObjectURL(await res.blob());
+      }
+      status.textContent = "";
+      a.src = previewUrls[key];
+      a.classList.remove("hidden");
+      await a.play();
+      return;
+    } catch (e) {
+      if (e.message === "Wrong password.") return;
+      status.textContent = "";
+    }
+  }
+  speak(text, lang, { onerror: (m) => (status.textContent = m) });
+}
+function stopPreview() {
+  stopSpeaking();
+  $("previewAudio").pause();
+}
+$("previewEn").onclick = () => preview("en");
+$("previewHi").onclick = () => preview("hi");
+$("previewStop").onclick = stopPreview;
 
 $("approveBtn").onclick = async () => {
   const status = $("approveStatus");
