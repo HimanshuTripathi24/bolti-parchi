@@ -12,7 +12,7 @@
 <header class="top"><div class="wrap mast"><div class="bubble">🔊</div><div><h1>Bolti Parchi · बोलती पर्ची</h1><p>Scan → Doctor verifies → Patient listens</p></div></div></header>
 
 <main class="wrap">
-  <div id="demoBanner" class="notice warn hidden"><b>Demo mode:</b> no Claude API key is set on the server, so “Read prescription” returns a sample prescription instead of reading yours.</div>
+  <div id="demoBanner" class="notice warn hidden"><b>Demo mode:</b> no Gemini API key is set on the server, so “Read prescription” returns a sample prescription instead of reading yours.</div>
 
   <!-- Login -->
   <section id="login" class="card hidden">
@@ -67,7 +67,7 @@
       <div class="step"><span class="num">2</span><h2>Check every medicine against the prescription</h2></div>
       <div id="notRx" class="notice bad hidden">This doesn’t look like a prescription. Check the photo.</div>
       <div id="unreadable" class="notice bad hidden"></div>
-      <p class="muted">Red = AI unsure, yellow = partly unsure. Fix anything wrong, then tick “checked” on each medicine.</p>
+      <p class="muted"><span id="readBy"></span>Red = AI unsure, yellow = partly unsure. Fix anything wrong, then tick “checked” on each medicine.</p>
       <div class="review">
         <div class="ref">
           <img id="refImg" class="hidden" alt="Prescription being checked">
@@ -121,8 +121,8 @@
         <a id="openLink" class="btn" target="_blank" rel="noopener">👂 Open patient page</a>
       </div>
       <div id="mp3Row" class="row hidden">
-        <button id="mp3Hi">⬇ Hindi voice note (MP3)</button>
-        <button id="mp3En">⬇ English voice note (MP3)</button>
+        <button id="mp3Hi">🔊 Hindi voice note</button>
+        <button id="mp3En">🔊 English voice note</button>
       </div>
       <div id="shareStatus" class="status" role="status"></div>
       <div class="row"><button id="newRx">＋ New prescription</button></div>

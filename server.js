@@ -4,8 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import Anthropic from "@anthropic-ai/sdk";
-import { extractPrescription, demoResult, hasApiKey, UserFacingError } from "./lib/extract.js";
+import { extractPrescription, demoResult, hasApiKey, UserFacingError, GeminiError } from "./lib/extract.js";
 import { makeToken, readToken } from "./lib/tokens.js";
 import { hasTts, synthesize } from "./lib/tts.js";
 
@@ -17,7 +16,7 @@ const MAX_BODY = 12 * 1024 * 1024; // photos are resized in the browser, so this
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 if (!APP_PASSWORD) console.warn("[warn] APP_PASSWORD is not set. Anyone who finds the site can use the scanner.");
-if (!hasApiKey()) console.warn("[warn] ANTHROPIC_API_KEY is not set. The scanner runs in DEMO mode with a sample prescription.");
+if (!hasApiKey()) console.warn("[warn] GEMINI_API_KEY is not set. The scanner runs in DEMO mode with a sample prescription.");
 
 const SECURITY_HEADERS = {
   "Content-Security-Policy": "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
@@ -135,8 +134,8 @@ const api = {
       return [400, { error: err.message }];
     }
     const lang = body.lang === "hi" ? "hi" : "en";
-    const mp3 = await synthesize(p[lang], lang);
-    return [200, mp3, { "Content-Type": "audio/mpeg" }];
+    const wav = await synthesize(p[lang], lang);
+    return [200, wav, { "Content-Type": "audio/wav" }];
   },
 };
 
@@ -169,15 +168,14 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     // Never log request bodies: they may contain patient information.
     if (err instanceof UserFacingError) return send(res, 400, { error: err.message });
-    if (err instanceof Anthropic.AuthenticationError) {
-      console.error("Claude API key rejected");
-      return send(res, 500, { error: "The server's AI key is not valid. Contact the administrator." });
-    }
-    if (err instanceof Anthropic.RateLimitError) return send(res, 503, { error: "The AI service is busy. Try again in a minute." });
-    if (err instanceof Anthropic.APIError) {
-      console.error(`Claude API error ${err.status}`);
+    if (err instanceof GeminiError) {
+      console.error(`Gemini API error ${err.status}: ${err.detail.slice(0, 200)}`);
+      if (err.status === 400 && /api key/i.test(err.detail)) return send(res, 500, { error: "The server's AI key is not valid. Contact the administrator." });
+      if (err.status === 401 || err.status === 403) return send(res, 500, { error: "The server's AI key is not valid or not allowed. Contact the administrator." });
+      if (err.status === 429) return send(res, 503, { error: "The AI service limit was reached. Try again in a minute." });
       return send(res, 502, { error: "The AI service had a problem. Please try again." });
     }
+    if (err?.name === "TimeoutError") return send(res, 504, { error: "The AI took too long. Please try again." });
     console.error("Server error:", err?.message);
     send(res, 500, { error: "Something went wrong. Please try again." });
   }

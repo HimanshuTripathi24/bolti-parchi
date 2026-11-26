@@ -49,8 +49,13 @@ function unitsHi(s) {
 const isHalf = (d) => /^(1\/2|½|0?\.5|half)$/i.test(d.trim());
 const isQuarter = (d) => /^(1\/4|¼|0?\.25)$/i.test(d.trim());
 
+// "2 tsf" / "1 tsp" -> teaspoons (5 ml each)
+const TSP = /^(\d+(?:\.\d+)?|1\/2|½)\s*(tsf|tsp|teaspoons?)$/i;
+
 function doseEn(m) {
   const d = (m.dose || "").trim();
+  const t = TSP.exec(d);
+  if (t) return isHalf(t[1]) ? "half a teaspoon" : `${t[1]} ${t[1] === "1" ? "teaspoon" : "teaspoons"} (${Number(t[1]) * 5} ml)`;
   const [one, many] = FORM[m.form] || FORM.other;
   if (!d) return APPLY.has(m.form) ? "" : `the ${one}`;
   if (isHalf(d)) return `half a ${one}`;
@@ -62,6 +67,8 @@ function doseEn(m) {
 
 function doseHi(m) {
   const d = (m.dose || "").trim();
+  const t = TSP.exec(d);
+  if (t) return isHalf(t[1]) ? "आधा चम्मच" : `${t[1]} चम्मच (${Number(t[1]) * 5} मिलीलीटर)`;
   const [, , one, many] = FORM[m.form] || FORM.other;
   if (!d) return APPLY.has(m.form) ? "" : one;
   if (isHalf(d)) return `आधी ${one}`;

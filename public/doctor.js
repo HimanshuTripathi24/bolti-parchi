@@ -2,8 +2,8 @@ import { buildScripts } from "./scripts.js";
 import { speak, stopSpeaking } from "./speak.js";
 
 const $ = (id) => document.getElementById(id);
-const MAX_EDGE = 2576; // long edge sent to Claude; enough detail for handwriting
-const MAX_B64 = 4.5 * 1024 * 1024; // API limit is 5 MB per image
+const MAX_EDGE = 2576; // long edge sent to Gemini; enough detail for handwriting
+const MAX_B64 = 4.5 * 1024 * 1024; // keeps uploads small (Gemini inline limit is 20 MB per request)
 
 const FORMS = ["tablet", "capsule", "syrup", "suspension", "drops", "injection", "ointment", "cream", "gel", "lotion", "powder", "sachet", "inhaler", "spray", "suppository", "mouthwash", "soap", "other"];
 const TIMES = [["morning", "Morning"], ["afternoon", "Afternoon"], ["evening", "Evening"], ["night", "Night"], ["bedtime", "Bedtime"]];
@@ -222,7 +222,7 @@ $("readBtn").onclick = async () => {
   const btn = $("readBtn");
   const status = $("readStatus");
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Reading… (can take up to a minute)';
+  btn.innerHTML = '<span class="spinner"></span> Reading… (can take 1–2 minutes)';
   status.textContent = "";
   try {
     let body, refUrl = null;
@@ -249,6 +249,7 @@ function showReview(refUrl, typedText) {
   $("refImg").classList.toggle("hidden", !refUrl);
   if (refUrl) $("refImg").src = refUrl;
   $("transcription").value = typedText ?? data.transcription ?? "";
+  $("readBy").textContent = data.model ? `Read by ${data.model}. ` : data.demo ? "Sample data (demo mode). " : "";
   $("notRx").classList.toggle("hidden", data.is_prescription !== false);
   $("unreadable").classList.toggle("hidden", !data.unreadable_parts);
   $("unreadable").textContent = data.unreadable_parts ? `Could not read: ${data.unreadable_parts}` : "";
@@ -436,8 +437,8 @@ async function shareMp3(lang) {
   try {
     const res = await api("/api/tts", { token, lang }, { raw: true });
     const blob = await res.blob();
-    const name = lang === "hi" ? "parchi-hindi.mp3" : "parchi-english.mp3";
-    const file = new File([blob], name, { type: "audio/mpeg" });
+    const name = lang === "hi" ? "parchi-hindi.wav" : "parchi-english.wav";
+    const file = new File([blob], name, { type: "audio/wav" });
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({ files: [file], title: "Bolti Parchi" });
     } else {
