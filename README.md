@@ -25,7 +25,8 @@ The AI is never the last word. The doctor must tick every medicine as checked an
 
 - The English and Hindi scripts come from **fixed templates** filled from the checked table, so the doctor sees exactly what will be spoken (no hidden AI translation). The doctor can still edit the wording.
 - After approval the doctor gets a **patient link**, which they can share on WhatsApp or SMS. The patient opens it, picks हिन्दी or English, and presses play.
-- Voice: Gemini's text-to-speech model (same key) gives patients a natural Hindi or English voice, and the doctor can share a **voice note** (WAV file) straight to WhatsApp. If that fails, or `NATURAL_VOICE=off`, the patient's phone voice reads it instead (most Android phones have Hindi; if not, the page explains how to turn it on).
+- **Hindi voice: offline and unlimited.** Hindi is spoken by Piper's "Pratham" voice running on the server itself (via sherpa-onnx), so there is no quota and the text never leaves the server. It speaks phrase by phrase with clear pauses, says each medicine name slowly on its own, and the doctor can press 🔊 next to any medicine to hear exactly how its name will be said (and fix the Hindi spelling if needed). The voice is downloaded at build time and checked against a fixed fingerprint (`scripts/fetch-voice.mjs`; run `npm run fetch-voice` locally). Licence: the Pratham voice was trained on data under CC BY-NC-SA 4.0 (non-commercial use only).
+- English voice (same key) gives patients a natural Hindi or English voice, and the doctor can share a **voice note** (WAV file) straight to WhatsApp. If that fails, or `NATURAL_VOICE=off`, the patient's phone voice reads it instead (most Android phones have Hindi; if not, the page explains how to turn it on).
 
 ## Privacy (what is and isn't stored)
 
@@ -90,7 +91,9 @@ A scan usually takes 10–30 seconds. On the free tier, Google gives lower prior
 | `lib/extract.js` | The Gemini prompt, output format and model fallback for reading prescriptions |
 | `lib/tokens.js` | Signed, expiring patient links |
 | `lib/auth.js` | Sign-in, sessions, lockout, safe-setup checks |
-| `lib/tts.js` | Natural voice with Gemini text-to-speech |
+| `lib/tts.js` | Voice notes: offline Hindi (Piper) and Gemini English |
+| `lib/piper.js` | Offline Hindi voice: pauses, slow medicine names |
+| `scripts/fetch-voice.mjs` | Downloads and fingerprint-checks the Hindi voice |
 | `public/index.html`, `doctor.js` | Doctor screens: upload, crop, review, approve, share |
 | `public/scripts.js` | English and Hindi script templates |
 | `public/listen.html`, `listen.js` | Patient listening page |

@@ -372,6 +372,24 @@ function plainReading(m) {
 const metaText = (m) => [m.strength, m.form !== "other" ? m.form : ""].filter(Boolean).join(" ");
 const MISSING = "How to take it is missing. Use Edit to add it.";
 
+/** Plays one medicine name exactly as the patient's Hindi voice will say it. */
+let nameAudioEl;
+async function hearName(m) {
+  const name = (m.name_hindi || "").trim();
+  const status = $("reviewStatus");
+  if (!name) return (status.textContent = `Add how “${m.medicine_name || "this medicine"}” sounds in Hindi first (Edit → Name as spoken in Hindi).`);
+  try {
+    status.textContent = "";
+    const res = await api("/api/preview-voice", { text: name, lang: "hi", name: true }, { raw: true });
+    const url = URL.createObjectURL(await res.blob());
+    nameAudioEl?.pause();
+    nameAudioEl = new Audio(url);
+    await nameAudioEl.play();
+  } catch (e) {
+    if (e.message !== "Wrong password.") status.textContent = e.message;
+  }
+}
+
 /** After an edit: untick the line and refresh its summary, keeping the edit panel open. */
 function changed(m) {
   m._checked = false;
@@ -414,6 +432,7 @@ function renderMeds() {
       el("div", {},
         el("div", { class: "med-title" },
           el("label", { class: "med-name", for: tickId }, m.medicine_name || "Unnamed medicine"),
+          config.nameCheck ? el("button", { class: "say", type: "button", title: "Hear how the patient's voice says this name", "aria-label": `Hear how ${m.medicine_name || "this medicine"} is pronounced`, onclick: () => hearName(m) }, "🔊") : null,
           el("span", { class: "med-meta" }, metaText(m)),
           conf === "medium" ? el("span", { class: "flag medium" }, "Check this") : conf === "low" ? el("span", { class: "flag low" }, "AI unsure") : null),
         el("p", { class: `med-plain${plain ? "" : " empty"}` }, plain || MISSING),
@@ -423,7 +442,9 @@ function renderMeds() {
         el("summary", {}, "Edit"),
         el("div", { class: "fields" },
           el("div", { class: "wide" }, field("Medicine name", bindText(m, "medicine_name"))),
-          el("div", { class: "wide" }, field("Name as spoken in Hindi", bindText(m, "name_hindi", { lang: "hi" }))),
+          el("div", { class: "wide name-say" },
+            field("Name as spoken in Hindi (spell it the way it sounds)", bindText(m, "name_hindi", { lang: "hi" })),
+            config.nameCheck ? el("button", { class: "small", type: "button", "aria-label": "Hear how this name is spoken", onclick: () => hearName(m) }, "▶ Hear name") : null),
           field("Strength", bindText(m, "strength", { placeholder: "500 mg" })),
           field("Form", bindSelect(m, "form", FORMS.map((f) => [f, f]))),
           field("Dose each time", bindText(m, "dose", { placeholder: "1, 1/2, 5 ml" })),
@@ -458,6 +479,8 @@ $("makeScripts").onclick = () => {
   if (unnamed >= 0) return (status.textContent = `Medicine ${unnamed + 1} has no name.`);
   const unchecked = data.medicines.findIndex((m) => !m._checked);
   if (unchecked >= 0) return (status.textContent = `Tick medicine ${unchecked + 1} once you’ve checked it against the slip.`);
+  const noHindi = data.medicines.findIndex((m) => !/[ऀ-ॿ]/.test(m.name_hindi || ""));
+  if (noHindi >= 0) return (status.textContent = `Medicine ${noHindi + 1}: add how its name sounds in Hindi (Edit → Name as spoken in Hindi), so the voice says it correctly.`);
   const noTiming = data.medicines.findIndex((m) => !m.as_needed && !m.times_per_day && !(m.times_of_day || []).length);
   if (noTiming >= 0) return (status.textContent = `Medicine ${noTiming + 1}: set how many times a day, or tick SOS.`);
   status.textContent = "";

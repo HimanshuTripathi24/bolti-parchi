@@ -179,6 +179,9 @@ textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
 .med-name { font-family: var(--serif); font-size: var(--t-xl); line-height: 1.15; color: var(--text); }
 .med-name::before { content: counter(med) ". "; color: var(--muted); font-size: var(--t-lg); }
 .med-meta { color: var(--muted); font-size: var(--t-sm); }
+.say { min-height: 32px; width: 32px; padding: 0; border-radius: 50%; font-size: 0.95rem; align-self: center; }
+.name-say { display: flex; align-items: flex-end; gap: 8px; }
+.name-say > div { flex: 1; }
 .med-plain { margin: 2px 0 0; font-size: var(--t-md); }
 .med-plain.empty { color: var(--red); }
 .flag { font-size: var(--t-xs); font-weight: 700; padding: 2px 9px; border-radius: 99px; }

@@ -7,9 +7,22 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "vercel-build": "node scripts/fetch-voice.mjs",
+    "fetch-voice": "node scripts/fetch-voice.mjs"
   },
   "engines": {
     "node": ">=20.12"
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "1.12.40"
+  },
+  "overrides": {
+    "sherpa-onnx-linux-x64": "1.12.40",
+    "sherpa-onnx-linux-arm64": "1.12.40",
+    "sherpa-onnx-win-x64": "1.12.40",
+    "sherpa-onnx-win-ia32": "1.12.40",
+    "sherpa-onnx-darwin-x64": "1.12.40",
+    "sherpa-onnx-darwin-arm64": "1.12.40"
   }
 }

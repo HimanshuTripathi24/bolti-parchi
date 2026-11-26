@@ -6,7 +6,9 @@
   ],
   "functions": {
     "api/index.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "memory": 2048,
+      "includeFiles": "{voices/**,node_modules/sherpa-onnx-linux-x64/**,node_modules/sherpa-onnx-node/**}"
     }
   },
   "rewrites": [
