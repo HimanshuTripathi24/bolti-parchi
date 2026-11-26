@@ -1,5 +1,5 @@
 import { buildScripts } from "./scripts.js";
-import { speak, stopSpeaking } from "./speak.js";
+import { speak, stopSpeaking, hasVoiceFor } from "./speak.js";
 
 const $ = (id) => document.getElementById(id);
 const MAX_EDGE = 2576; // long edge sent to Gemini; enough detail for handwriting
@@ -516,6 +516,11 @@ ${text}`;
     } catch (e) {
       if (e.message === "Wrong password.") return;
       status.textContent = "";
+      if (!(await hasVoiceFor(lang))) {
+        status.textContent = "The natural voice isn't available right now (Gemini's free voice limit is about 10 voice notes per model per day). You can still approve; the patient's page will offer the voice again later. Turning on Gemini billing removes this limit.";
+        return;
+      }
+      status.textContent = "Natural voice unavailable right now, so this computer's voice is reading it.";
     }
   }
   speak(text, lang, { onerror: (m) => (status.textContent = m) });

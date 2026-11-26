@@ -1,4 +1,4 @@
-import { speak, stopSpeaking } from "./speak.js";
+import { speak, stopSpeaking, hasVoiceFor } from "./speak.js";
 
 const $ = (id) => document.getElementById(id);
 const token = location.hash.slice(1);
@@ -13,24 +13,66 @@ const UI = {
     title: "आपकी दवाइयां", sub: "डॉक्टर ने जांच कर यह संदेश भेजा है। जितनी बार चाहें सुनें।",
     play: "सुनें", pause: "रोकें", again: "फिर से सुनें", stop: "बंद करें",
     loading: "आवाज़ तैयार हो रही है…", playing: "सुनाया जा रहा है…",
+    busy: "आवाज़ अभी उपलब्ध नहीं है। थोड़ी देर बाद ▶ दोबारा दबाएं। तब तक नीचे लिखी दवाइयां पढ़ लें।",
+    busyPhone: "आवाज़ अभी उपलब्ध नहीं है, इसलिए फ़ोन की आवाज़ में सुनाया जा रहा है।",
     expires: "यह लिंक इस तारीख तक चलेगा:", checked: "जांच की तारीख",
   },
   en: {
     title: "Your medicines", sub: "Your doctor checked this message. Listen as many times as you need.",
     play: "Listen", pause: "Pause", again: "Listen again", stop: "Stop",
     loading: "Preparing the voice…", playing: "Playing…",
+    busy: "The voice isn't available right now. Press ▶ again in a little while. Meanwhile you can read your medicines below.",
+    busyPhone: "The voice isn't available right now, so your phone's own voice is reading it.",
     expires: "This link works until", checked: "Checked on",
   },
 };
 
 const fmtDate = (sec, l) => new Date(sec * 1000).toLocaleDateString(l === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "long", year: "numeric" });
 
-/** Fetches the natural-voice audio once per language; the promise is reused. */
+// Once a voice note has loaded, a copy is kept on this phone (until the link expires), so listening
+// again works offline and doesn't use the clinic's voice quota.
+const STORE = "bolti-voice-v1";
+async function storeKey(l) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${l}|${token}`));
+  return `/voice-cache/${[...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+async function fromPhone(l) {
+  if (!("caches" in window)) return null;
+  try {
+    const hit = await (await caches.open(STORE)).match(await storeKey(l));
+    return hit ? await hit.blob() : null;
+  } catch { return null; }
+}
+async function toPhone(l, blob) {
+  if (!("caches" in window)) return;
+  try {
+    await (await caches.open(STORE)).put(await storeKey(l), new Response(blob, { headers: { "Content-Type": "audio/wav", "X-Expires": String(rx.exp) } }));
+  } catch {}
+}
+async function pruneExpired() {
+  if (!("caches" in window)) return;
+  try {
+    const cache = await caches.open(STORE);
+    for (const req of await cache.keys()) {
+      const res = await cache.match(req);
+      if (Number(res?.headers.get("X-Expires")) < Date.now() / 1000) await cache.delete(req);
+    }
+  } catch {}
+}
+
+/** Gets the natural-voice audio once per language: from this phone if saved, else from the server. */
 function loadAudio(l) {
   if (!audioCache[l]) {
-    audioCache[l] = fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, lang: l }) })
-      .then((res) => { if (!res.ok) throw new Error("tts"); return res.blob(); })
-      .then((blob) => URL.createObjectURL(blob));
+    audioCache[l] = (async () => {
+      let blob = await fromPhone(l);
+      if (!blob) {
+        const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, lang: l }) });
+        if (!res.ok) throw new Error(res.status === 503 || res.status === 429 ? "busy" : "tts");
+        blob = await res.blob();
+        toPhone(l, blob);
+      }
+      return URL.createObjectURL(blob);
+    })();
     audioCache[l].catch(() => { delete audioCache[l]; });
   }
   return audioCache[l];
@@ -51,6 +93,7 @@ async function open() {
   $("loading").classList.add("hidden");
   $("patient").classList.remove("hidden");
   select("hi");
+  pruneExpired();
   if (rx.tts) loadAudio("hi").catch(() => {}); // start preparing the Hindi voice while the patient reads
 }
 
@@ -140,13 +183,18 @@ async function play() {
       $("speechStatus").textContent = "";
       return;
     } catch {
-      $("speechStatus").textContent = ""; // fall back to the phone's own voice
+      // Natural voice unavailable. Use the phone's own voice if it speaks this language; otherwise say so plainly.
+      if (!(await hasVoiceFor(lang))) {
+        $("speechStatus").textContent = t.busy;
+        setButton("idle");
+        return;
+      }
     }
   }
   speaking = true;
   setButton("playing");
   $("stop").classList.remove("hidden");
-  $("speechStatus").textContent = t.playing;
+  $("speechStatus").textContent = rx.tts ? t.busyPhone : t.playing;
   speak(rx[lang], lang, {
     onend: () => { speaking = false; $("speechStatus").textContent = ""; $("stop").classList.add("hidden"); setButton("ended"); },
     onerror: (m) => { speaking = false; $("speechStatus").textContent = m; $("stop").classList.add("hidden"); setButton("idle"); },

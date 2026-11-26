@@ -76,6 +76,8 @@ The app tries these Gemini models in order (`GEMINI_MODELS`). To keep scans fast
 1. `gemini-pro-latest`: best at messy handwriting. **Only works once billing is turned on.**
 2. `gemini-3-flash-preview`, `gemini-flash-latest`, `gemini-3.8-flash`, `gemini-3.5-flash`: these work on the free tier.
 
+**Free-tier limits:** Google's free tier allows only about **10 voice notes per voice model per day** (the app falls back across 4 voice models) and a small number of scans. When the voice is used up, patients see a clear message and can read their medicines on screen, or hear their phone's own voice if it speaks the language. Once a patient's voice note has loaded, it is saved on their phone, so listening again costs nothing. Turning on billing removes these limits.
+
 A scan usually takes 10–30 seconds. On the free tier, Google gives lower priority when demand is high, so it can occasionally take longer or fail with "try again". With billing on, you get Pro and faster answers, and each scan costs only a few rupees. The review screen shows which model read each prescription.
 
 ## Files

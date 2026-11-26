@@ -16,6 +16,13 @@ function loadVoices() {
 
 export const speechSupported = () => "speechSynthesis" in window;
 
+/** True if this device has a built-in voice for the language. */
+export async function hasVoiceFor(lang) {
+  if (!speechSupported()) return false;
+  const voices = await loadVoices();
+  return voices.some((v) => v.lang.replace("_", "-").toLowerCase().startsWith(lang));
+}
+
 export function stopSpeaking() {
   if (speechSupported()) speechSynthesis.cancel();
 }
