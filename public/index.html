@@ -5,131 +5,177 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Bolti Parchi · Doctor</title>
-<meta name="theme-color" content="#0b6873">
+<meta name="theme-color" content="#e2eae4">
+<link rel="preload" href="/fonts/tiro-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/mukta-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="top"><div class="wrap mast"><div class="bubble">🔊</div><div><h1>Bolti Parchi · बोलती पर्ची</h1><p>Scan → Doctor verifies → Patient listens</p></div></div></header>
+<header class="letterhead">
+  <a class="brand" href="/" aria-label="Bolti Parchi home">
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <rect x="6" y="3" width="22" height="30" rx="2.5" fill="#fcfcfa" stroke="#1d3b8f" stroke-width="2"/>
+      <path d="M11 11h9M11 16h12M11 21h7" stroke="#1d3b8f" stroke-width="2" stroke-linecap="round"/>
+      <path d="M29 17c2.2 1.8 2.2 6.2 0 8M32.5 14c4 3.4 4 10.6 0 14" fill="none" stroke="#6a3fa6" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span class="brand-name">Bolti Parchi<span lang="hi">बोलती पर्ची</span></span>
+  </a>
+  <button id="signOut" class="signout hidden" type="button">Sign out</button>
+</header>
 
-<main class="wrap">
-  <div id="demoBanner" class="notice warn hidden"><b>Demo mode:</b> no Gemini API key is set on the server, so “Read prescription” returns a sample prescription instead of reading yours.</div>
-
-  <!-- Login -->
-  <section id="login" class="card hidden">
-    <div class="step"><span class="num">🔒</span><h2>Doctor sign-in</h2></div>
-    <label for="pw">Clinic password</label>
+<!-- Sign in -->
+<section id="login" class="signin hidden">
+  <div class="slip">
+    <h2>Sign in to your clinic</h2>
+    <p class="lead">Use the password your clinic set for Bolti Parchi.</p>
+    <label for="pw">Password</label>
     <input id="pw" type="password" autocomplete="current-password">
-    <div class="row"><button id="loginBtn" class="primary">Sign in</button></div>
+    <div class="actions"><button id="loginBtn" class="primary" type="button">Sign in</button></div>
     <div id="loginStatus" class="status" role="status"></div>
-  </section>
+  </div>
+</section>
 
-  <div id="app" class="hidden">
-    <!-- Step 1 -->
-    <section class="card">
-      <div class="step"><span class="num">1</span><h2>Add the prescription</h2></div>
-      <div class="tabs" role="tablist">
-        <button id="tabPhoto" class="on" role="tab">📷 Photo</button>
-        <button id="tabText" role="tab">⌨ Type or paste text</button>
+<div id="app" class="desk hidden">
+  <ol class="rail" id="rail" aria-label="Steps">
+    <li data-step="1" aria-current="step">Scan</li>
+    <li data-step="2">Check</li>
+    <li data-step="3">Approve</li>
+    <li data-step="4">Send</li>
+  </ol>
+
+  <main class="slip">
+    <div id="demoBanner" class="banner hidden">Demo mode: the server has no Gemini key, so reading returns a sample prescription instead of yours.</div>
+
+    <!-- 1. Scan -->
+    <section class="part" aria-labelledby="h-scan">
+      <div class="part-head"><span class="rx" aria-hidden="true">℞</span><h2 id="h-scan">Add the prescription</h2></div>
+      <p class="lead" id="scanLead">Photograph the slip, or type it in if the photo is hard to read.</p>
+
+      <div id="scannedRow" class="scanned hidden">
+        <img id="scannedThumb" class="hidden" alt="">
+        <p id="scannedText">Prescription read.</p>
+        <button id="rescan" class="small" type="button">Use a different prescription</button>
+      </div>
+
+      <div id="scanInputs">
+      <div class="segmented" role="tablist">
+        <button id="tabPhoto" role="tab" aria-selected="true" type="button">Photo</button>
+        <button id="tabText" role="tab" aria-selected="false" type="button">Type it</button>
       </div>
 
       <div id="photoPane">
-        <div class="row">
-          <label class="btn primary" for="camera">📷 Take photo</label>
-          <input id="camera" type="file" accept="image/*" capture="environment" class="hidden">
-          <label class="btn" for="gallery">🖼 Choose image</label>
-          <input id="gallery" type="file" accept="image/*" class="hidden">
+        <div class="dropzone" id="dropzone">
+          <div class="row">
+            <label class="btn primary" for="camera">Take photo</label>
+            <input id="camera" type="file" accept="image/*" capture="environment" class="hidden">
+            <label class="btn" for="gallery">Choose image</label>
+            <input id="gallery" type="file" accept="image/*" class="hidden">
+          </div>
+          <p>Lay the slip flat in good light. Avoid shadows across the writing.</p>
         </div>
         <div id="editorWrap" class="hidden">
-          <p class="muted">Drag a box around the <b>medicines only</b> (leave out the patient’s name and details). A tight crop also reads better.</p>
-          <div class="row">
-            <button id="rotL" class="small">⟲ Rotate</button>
-            <button id="rotR" class="small">⟳ Rotate</button>
-            <button id="clearCrop" class="small">Clear box</button>
-            <label class="inline"><input id="enhance" type="checkbox"> Boost contrast</label>
-          </div>
+          <p class="note">Drag a box around the medicines only. Leave out the patient’s name and phone number. A tight box also reads better.</p>
           <div class="editor" id="editor"><canvas id="canvas"></canvas><div id="cropbox" class="cropbox hidden"></div></div>
+          <div class="toolrow">
+            <button id="rotL" class="small" type="button" aria-label="Rotate left">⟲ Rotate</button>
+            <button id="rotR" class="small" type="button" aria-label="Rotate right">⟳ Rotate</button>
+            <button id="clearCrop" class="small quiet" type="button">Clear box</button>
+            <label class="check-inline"><input id="enhance" type="checkbox"> Darken faint ink</label>
+          </div>
         </div>
       </div>
 
       <div id="textPane" class="hidden">
         <label for="rxText">Prescription text</label>
-        <textarea id="rxText" placeholder="e.g.&#10;Tab Pan 40 1-0-0 BF x 5d&#10;Tab Augmentin 625 BD AF x 5 days&#10;Syp Cremaffin 10ml HS"></textarea>
-        <div class="row"><label class="btn small" for="txtFile">📄 Load .txt file</label><input id="txtFile" type="file" accept=".txt,text/plain" class="hidden"></div>
-        <p class="muted">Don’t type the patient’s name or phone number.</p>
+        <textarea id="rxText" placeholder="Tab Pan 40  1-0-0  BF x 5d&#10;Tab Augmentin 625  BD  AF x 5 days&#10;Syp Cremaffin 10 ml HS"></textarea>
+        <div class="toolrow"><label class="btn small" for="txtFile">Load a .txt file</label><input id="txtFile" type="file" accept=".txt,text/plain" class="hidden"></div>
+        <p class="note">Don’t type the patient’s name or phone number.</p>
       </div>
 
-      <div class="row"><button id="readBtn" class="primary" disabled>✨ Read prescription</button></div>
+      <div class="actions"><button id="readBtn" class="primary" type="button" disabled>Read prescription</button></div>
+      </div>
       <div id="readStatus" class="status" role="status"></div>
     </section>
 
-    <!-- Step 2 -->
-    <section id="reviewCard" class="card hidden">
-      <div class="step"><span class="num">2</span><h2>Check every medicine against the prescription</h2></div>
-      <div id="notRx" class="notice bad hidden">This doesn’t look like a prescription. Check the photo.</div>
-      <div id="unreadable" class="notice bad hidden"></div>
-      <p class="muted"><span id="readBy"></span>Red = AI unsure, yellow = partly unsure. Fix anything wrong, then tick “checked” on each medicine.</p>
+    <!-- 2. Check -->
+    <section id="reviewCard" class="part hidden" aria-labelledby="h-check">
+      <div class="part-head"><h2 id="h-check">Check each medicine against the slip</h2></div>
+      <p class="lead">Tick a medicine once it matches. Lines marked “check this” or “AI unsure” need a careful look. Use “Edit” to correct anything.</p>
+      <div id="notRx" class="banner bad hidden">This doesn’t look like a prescription. Check the photo and try again.</div>
+      <div id="unreadable" class="banner bad hidden"></div>
       <div class="review">
-        <div class="ref">
-          <img id="refImg" class="hidden" alt="Prescription being checked">
-          <label for="transcription">What the AI read (as written)</label>
-          <textarea id="transcription" class="tall" readonly></textarea>
-        </div>
+        <aside class="original">
+          <p class="read-by" id="readBy"></p>
+          <img id="refImg" class="hidden" alt="The prescription you uploaded">
+          <details>
+            <summary>What the AI read, as written</summary>
+            <pre id="transcription"></pre>
+          </details>
+        </aside>
         <div>
-          <div id="meds"></div>
-          <button id="addMed" class="small">＋ Add medicine</button>
-          <div class="grid2">
-            <div><label for="advice">Other advice (English, one per line)</label><textarea id="advice"></textarea></div>
-            <div><label for="adviceHi">अन्य सलाह (हिन्दी, हर लाइन में एक)</label><textarea id="adviceHi" lang="hi"></textarea></div>
+          <ol class="meds" id="meds"></ol>
+          <div class="toolrow"><button id="addMed" class="small" type="button">Add a medicine</button></div>
+          <div class="extras">
+            <div><label for="adviceHi" lang="hi">अन्य सलाह (हर लाइन में एक)</label><textarea id="adviceHi" lang="hi"></textarea></div>
+            <div><label for="advice">Other advice (one per line)</label><textarea id="advice"></textarea></div>
+            <div><label for="followUpHi" lang="hi">दोबारा कब दिखाना है</label><input id="followUpHi" type="text" lang="hi" placeholder="7 दिन बाद"></div>
+            <div><label for="followUp">Follow-up</label><input id="followUp" type="text" placeholder="after 7 days"></div>
           </div>
-          <div class="grid2">
-            <div><label for="followUp">Follow-up (English)</label><input id="followUp" type="text" placeholder="after 7 days"></div>
-            <div><label for="followUpHi">दोबारा दिखाना (हिन्दी)</label><input id="followUpHi" type="text" lang="hi" placeholder="7 दिन बाद"></div>
-          </div>
-          <div class="row"><button id="makeScripts" class="primary">Make patient scripts →</button></div>
+          <div class="actions"><button id="makeScripts" class="primary" type="button">Prepare patient message</button></div>
           <div id="reviewStatus" class="status" role="status"></div>
         </div>
       </div>
     </section>
 
-    <!-- Step 3 -->
-    <section id="scriptCard" class="card hidden">
-      <div class="step"><span class="num">3</span><h2>Approve what the patient will hear</h2></div>
-      <p class="muted">You can edit the wording. This exact text is what gets spoken.</p>
-      <div class="grid2">
-        <div><label for="enScript">English</label><textarea id="enScript" class="tall"></textarea></div>
-        <div><label for="hiScript">हिन्दी</label><textarea id="hiScript" class="tall" lang="hi"></textarea></div>
+    <!-- 3. Approve -->
+    <section id="scriptCard" class="part stamp-wrap hidden" aria-labelledby="h-approve">
+      <div class="part-head"><h2 id="h-approve">Approve what the patient will hear</h2></div>
+      <p class="lead">This exact text is spoken to the patient. Listen once, change any wording, then approve.</p>
+      <div class="voices">
+        <div class="voice-card">
+          <div class="voice-head"><h3 lang="hi">हिन्दी</h3><button id="previewHi" class="play-mini" type="button" aria-label="हिन्दी सुनें">▶</button></div>
+          <textarea id="hiScript" lang="hi" aria-label="Hindi script"></textarea>
+        </div>
+        <div class="voice-card">
+          <div class="voice-head"><h3>English</h3><button id="previewEn" class="play-mini" type="button" aria-label="Hear English">▶</button></div>
+          <textarea id="enScript" aria-label="English script"></textarea>
+        </div>
       </div>
-      <div class="row"><button id="previewEn" class="small">▶ Hear English</button><button id="previewHi" class="small">▶ हिन्दी सुनें</button><button id="previewStop" class="small">■ Stop</button></div>
+      <div class="toolrow"><button id="previewStop" class="small quiet" type="button">Stop listening</button></div>
       <audio id="previewAudio" class="hidden" controls></audio>
-      <div class="check"><input type="checkbox" id="c1"><label for="c1">Drug names and strengths confirmed against the original</label></div>
-      <div class="check"><input type="checkbox" id="c2"><label for="c2">Dose, frequency, timing (food) and duration confirmed</label></div>
-      <div class="check"><input type="checkbox" id="c3"><label for="c3">Unclear abbreviations clarified; English and Hindi wording checked</label></div>
-      <div class="row">
-        <label class="inline" for="days">Link valid for <input id="days" type="number" min="1" max="90" value="30"> days</label>
-        <button id="approveBtn" class="primary">✓ Approve and create patient link</button>
+
+      <ul class="checklist">
+        <li><input class="tick" type="checkbox" id="c1"><label for="c1">Medicine names and strengths match the original</label></li>
+        <li><input class="tick" type="checkbox" id="c2"><label for="c2">Dose, how often, food timing and duration are right</label></li>
+        <li><input class="tick" type="checkbox" id="c3"><label for="c3">Abbreviations are clear, and both languages say the same thing</label></li>
+      </ul>
+      <div class="approve-row">
+        <button id="approveBtn" class="primary" type="button">Approve and create link</button>
+        <label class="days" for="days">Link works for <input id="days" type="number" min="1" max="90" value="30"> days</label>
       </div>
       <div id="approveStatus" class="status" role="status"></div>
+      <div id="stamp" class="stamp hidden" aria-hidden="true"><b lang="hi">स्वीकृत</b><span>APPROVED</span><small id="stampDate"></small></div>
     </section>
 
-    <!-- Step 4 -->
-    <section id="shareCard" class="card hidden">
-      <div class="step"><span class="num">4</span><h2>Send to the patient</h2></div>
-      <div class="notice ok">Approved. The link works until <b id="expiry"></b>. Nothing about the patient is stored on the server; the approved text lives only inside this link.</div>
+    <!-- 4. Send -->
+    <section id="shareCard" class="part hidden" aria-labelledby="h-send">
+      <div class="part-head"><h2 id="h-send">Send it to the patient</h2></div>
+      <p class="lead">The link works until <b id="expiry"></b>. The approved text lives only inside this link; nothing about the patient is saved on the server.</p>
       <div id="link" class="linkbox"></div>
       <div class="row">
-        <button id="shareBtn" class="primary">📤 Share link (WhatsApp, SMS…)</button>
-        <button id="copyBtn">📋 Copy link</button>
-        <a id="openLink" class="btn" target="_blank" rel="noopener">👂 Open patient page</a>
+        <button id="shareBtn" class="primary" type="button">Share link</button>
+        <button id="copyBtn" type="button">Copy link</button>
+        <a id="openLink" class="btn" target="_blank" rel="noopener">Open patient page</a>
       </div>
       <div id="mp3Row" class="row hidden">
-        <button id="mp3Hi">🔊 Hindi voice note</button>
-        <button id="mp3En">🔊 English voice note</button>
+        <button id="mp3Hi" type="button" lang="hi">हिन्दी वॉइस नोट भेजें</button>
+        <button id="mp3En" type="button">Send English voice note</button>
       </div>
       <div id="shareStatus" class="status" role="status"></div>
-      <div class="row"><button id="newRx">＋ New prescription</button></div>
+      <div class="actions"><button id="newRx" class="quiet" type="button">Start a new prescription</button></div>
     </section>
-  </div>
-</main>
+  </main>
+</div>
 <script type="module" src="/doctor.js"></script>
 </body>
 </html>

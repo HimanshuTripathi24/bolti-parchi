@@ -36,6 +36,21 @@ async function api(path, body, { raw = false } = {}) {
   return raw ? res : res.json();
 }
 
+/** Marks the step rail: earlier steps done, this one current. */
+function setStep(n) {
+  for (const li of $("rail").children) {
+    const k = Number(li.dataset.step);
+    li.classList.toggle("done", k < n);
+    if (k === n) li.setAttribute("aria-current", "step");
+    else li.removeAttribute("aria-current");
+  }
+}
+
+$("signOut").onclick = () => {
+  sessionStorage.removeItem("bp-pw");
+  location.reload();
+};
+
 function showLogin(msg = "") {
   $("app").classList.add("hidden");
   $("login").classList.remove("hidden");
@@ -50,6 +65,7 @@ async function init() {
   if (config.passwordRequired && !password) return showLogin();
   if (config.passwordRequired) {
     try { await api("/api/login", {}); } catch { return; }
+    $("signOut").classList.remove("hidden");
   }
   $("app").classList.remove("hidden");
 }
@@ -59,6 +75,7 @@ $("loginBtn").onclick = async () => {
   try {
     await api("/api/login", {});
     sessionStorage.setItem("bp-pw", password);
+    $("signOut").classList.remove("hidden");
     $("login").classList.add("hidden");
     $("app").classList.remove("hidden");
   } catch (e) {
@@ -70,8 +87,8 @@ $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn"
 // ---------- step 1: input ----------
 function setMode(m) {
   mode = m;
-  $("tabPhoto").classList.toggle("on", m === "photo");
-  $("tabText").classList.toggle("on", m === "text");
+  $("tabPhoto").setAttribute("aria-selected", String(m === "photo"));
+  $("tabText").setAttribute("aria-selected", String(m === "text"));
   $("photoPane").classList.toggle("hidden", m !== "photo");
   $("textPane").classList.toggle("hidden", m !== "text");
   updateReadBtn();
@@ -222,7 +239,7 @@ $("readBtn").onclick = async () => {
   const btn = $("readBtn");
   const status = $("readStatus");
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Reading… (usually 10–30 seconds)';
+  btn.innerHTML = '<span class="spinner"></span> Reading the handwriting… usually 10–30 seconds';
   status.textContent = "";
   try {
     let body, refUrl = null;
@@ -238,18 +255,35 @@ $("readBtn").onclick = async () => {
   } catch (e) {
     status.textContent = e.message;
   } finally {
-    btn.innerHTML = "✨ Read prescription";
+    btn.textContent = "Read prescription";
     updateReadBtn();
   }
 };
+
+/** After reading, fold the scan step down to one line so the doctor's attention moves to checking. */
+function foldScan(refUrl) {
+  $("scanInputs").classList.add("hidden");
+  $("scanLead").classList.add("hidden");
+  $("scannedRow").classList.remove("hidden");
+  $("scannedThumb").classList.toggle("hidden", !refUrl);
+  if (refUrl) $("scannedThumb").src = refUrl;
+  const n = data.medicines.length;
+  $("scannedText").textContent = `Prescription read: ${n} ${n === 1 ? "medicine" : "medicines"} found.`;
+}
+function unfoldScan() {
+  $("scanInputs").classList.remove("hidden");
+  $("scanLead").classList.remove("hidden");
+  $("scannedRow").classList.add("hidden");
+}
+$("rescan").onclick = () => $("newRx").click();
 
 // ---------- step 2: review ----------
 function showReview(refUrl, typedText) {
   for (const m of data.medicines) m._checked = false;
   $("refImg").classList.toggle("hidden", !refUrl);
   if (refUrl) $("refImg").src = refUrl;
-  $("transcription").value = typedText ?? data.transcription ?? "";
-  $("readBy").textContent = data.model ? `Read by ${data.model}. ` : data.demo ? "Sample data (demo mode). " : "";
+  $("transcription").textContent = typedText ?? data.transcription ?? "";
+  $("readBy").textContent = data.model ? `Read by ${data.model}` : data.demo ? "Sample data (demo mode)" : "";
   $("notRx").classList.toggle("hidden", data.is_prescription !== false);
   $("unreadable").classList.toggle("hidden", !data.unreadable_parts);
   $("unreadable").textContent = data.unreadable_parts ? `Could not read: ${data.unreadable_parts}` : "";
@@ -258,6 +292,8 @@ function showReview(refUrl, typedText) {
   $("followUp").value = data.follow_up || "";
   $("followUpHi").value = data.follow_up_hindi || "";
   renderMeds();
+  foldScan(refUrl);
+  setStep(2);
   $("reviewCard").classList.remove("hidden");
   $("scriptCard").classList.add("hidden");
   $("shareCard").classList.add("hidden");
@@ -288,19 +324,60 @@ function onTableChange() {
   $("shareCard").classList.add("hidden");
   if (!$("scriptCard").classList.contains("hidden")) {
     $("scriptCard").classList.add("hidden");
-    $("reviewStatus").textContent = "You changed the table. Press “Make patient scripts” again.";
+    $("reviewStatus").textContent = "You changed a medicine. Press “Prepare patient message” again.";
+    setStep(2);
   }
 }
 
 function bindText(m, key, attrs = {}) {
-  return el("input", { type: "text", value: m[key] ?? "", ...attrs, oninput: (e) => { m[key] = e.target.value; uncheck(m); } });
+  return el("input", { type: "text", value: m[key] ?? "", ...attrs, oninput: (e) => { m[key] = e.target.value; changed(m); } });
 }
 function bindSelect(m, key, options) {
-  const s = el("select", { onchange: (e) => { m[key] = e.target.value; uncheck(m); } },
+  return el("select", { onchange: (e) => { m[key] = e.target.value; changed(m); } },
     options.map(([v, t]) => el("option", { value: v, selected: m[key] === v }, t)));
-  return s;
 }
-function uncheck(m) {
+function bindNumber(m, key, attrs = {}) {
+  return el("input", { type: "number", min: 0, value: m[key] ?? 0, ...attrs, oninput: (e) => { m[key] = Number(e.target.value) || 0; changed(m); } });
+}
+
+/** Plain reading of one medicine, e.g. "1 tablet, twice a day (morning, night), after food, for 5 days". */
+function plainReading(m) {
+  const parts = [];
+  const form = m.form && m.form !== "other" ? m.form : "";
+  const dose = (m.dose || "").trim();
+  if (dose) parts.push(/^(\d+(\.\d+)?|1\/2|½)$/.test(dose) && form ? `${dose} ${form}` : dose);
+  const times = ["morning", "afternoon", "evening", "night", "bedtime"].filter((t) => (m.times_of_day || []).includes(t));
+  if (m.as_needed) parts.push("only when needed");
+  else {
+    const n = Number(m.times_per_day) || times.length;
+    const how = n === 1 ? "once a day" : n === 2 ? "twice a day" : n ? `${n} times a day` : "";
+    if (how || times.length) parts.push(`${how}${times.length ? `${how ? " " : ""}(${times.join(", ")})` : ""}`);
+  }
+  const food = { before_food: "before food", after_food: "after food", with_food: "with food", empty_stomach: "on an empty stomach" }[m.food];
+  if (food) parts.push(food);
+  const n = Number(m.duration_number) || 0;
+  const s = n > 1 ? "s" : "";
+  const dur = { days: n && `for ${n} day${s}`, weeks: n && `for ${n} week${s}`, months: n && `for ${n} month${s}`, until_finished: "until finished", continue: "continue until told to stop" }[m.duration_unit];
+  if (dur) parts.push(dur);
+  return parts.join(", ");
+}
+
+const metaText = (m) => [m.strength, m.form !== "other" ? m.form : ""].filter(Boolean).join(" ");
+const MISSING = "How to take it is missing. Use Edit to add it.";
+
+/** After an edit: untick the line and refresh its summary, keeping the edit panel open. */
+function changed(m) {
+  m._checked = false;
+  const li = m._li;
+  if (li) {
+    li.querySelector(".tick").checked = false;
+    li.querySelector(".med-name").textContent = m.medicine_name || "Unnamed medicine";
+    li.querySelector(".med-meta").textContent = metaText(m);
+    const plain = plainReading(m);
+    const p = li.querySelector(".med-plain");
+    p.textContent = plain || MISSING;
+    p.classList.toggle("empty", !plain);
+  }
   onTableChange();
 }
 
@@ -309,43 +386,52 @@ function renderMeds() {
   box.replaceChildren();
   data.medicines.forEach((m, i) => {
     const conf = m.confidence || "high";
+    const tickId = `tick${++uid}`;
+    const plain = plainReading(m);
     const times = el("div", { class: "times" }, TIMES.map(([v, t]) =>
-      el("label", {}, el("input", { type: "checkbox", checked: (m.times_of_day || []).includes(v), onchange: (e) => {
+      el("label", { class: "chip" }, el("input", { type: "checkbox", checked: (m.times_of_day || []).includes(v), onchange: (e) => {
         const set = new Set(m.times_of_day || []);
         e.target.checked ? set.add(v) : set.delete(v);
         m.times_of_day = [...set];
-        uncheck(m);
+        changed(m);
       } }), t)));
-    const checkId = `chk${++uid}`;
-    const card = el("div", { class: `med ${conf}` },
-      el("div", { class: "med-head" },
-        el("h3", {}, `Medicine ${i + 1}`),
-        el("span", { class: `badge ${conf}` }, conf === "high" ? "AI confident" : conf === "medium" ? "AI partly unsure" : "AI unsure — check carefully"),
-        el("button", { class: "small danger", onclick: () => { if (confirm("Remove this medicine?")) { data.medicines.splice(i, 1); renderMeds(); onTableChange(); } } }, "Remove")),
-      m.as_written ? el("div", { class: "written" }, `Written: ${m.as_written}`) : null,
-      m.doubts ? el("div", { class: "doubt" }, `⚠ ${m.doubts}`) : null,
-      el("div", { class: "grid4" },
-        field("Medicine name", bindText(m, "medicine_name")),
-        field("Hindi pronunciation", bindText(m, "name_hindi", { lang: "hi" })),
-        field("Strength", bindText(m, "strength", { placeholder: "500 mg" })),
-        field("Form", bindSelect(m, "form", FORMS.map((f) => [f, f])))),
-      el("div", { class: "grid4" },
-        field("Dose each time", bindText(m, "dose", { placeholder: "1, 1/2, 5 ml" })),
-        field("Times per day", el("input", { type: "number", min: 0, max: 12, value: m.times_per_day ?? 0, oninput: (e) => { m.times_per_day = Number(e.target.value) || 0; uncheck(m); } })),
-        field("Food", bindSelect(m, "food", FOOD)),
-        el("div", {}, el("label", {}, "Only if needed (SOS)"), el("label", { class: "inline" }, el("input", { type: "checkbox", checked: !!m.as_needed, onchange: (e) => { m.as_needed = e.target.checked; uncheck(m); } }), "SOS"))),
-      el("label", {}, "When in the day"),
-      times,
-      el("div", { class: "grid4" },
-        field("Duration", el("input", { type: "number", min: 0, value: m.duration_number ?? 0, oninput: (e) => { m.duration_number = Number(e.target.value) || 0; uncheck(m); } })),
-        field("Unit", bindSelect(m, "duration_unit", UNITS))),
-      el("div", { class: "grid2" },
-        field("Other instructions (English)", bindText(m, "other_instructions")),
-        field("अन्य निर्देश (हिन्दी)", bindText(m, "other_instructions_hindi", { lang: "hi" }))),
-      el("div", { class: "check checked-line" },
-        el("input", { type: "checkbox", id: checkId, checked: !!m._checked, onchange: (e) => { m._checked = e.target.checked; onTableChange(); } }),
-        el("label", { for: checkId }, "I checked this medicine against the original prescription")));
-    box.append(card);
+    const remove = () => {
+      if (!confirm("Remove this medicine?")) return;
+      data.medicines.splice(i, 1);
+      renderMeds();
+      onTableChange();
+    };
+    const li = el("li", { class: `med ${conf}` },
+      el("input", { class: "tick", type: "checkbox", id: tickId, checked: !!m._checked, "aria-label": `Checked medicine ${i + 1}`,
+        onchange: (e) => { m._checked = e.target.checked; onTableChange(); } }),
+      el("div", {},
+        el("div", { class: "med-title" },
+          el("label", { class: "med-name", for: tickId }, m.medicine_name || "Unnamed medicine"),
+          el("span", { class: "med-meta" }, metaText(m)),
+          conf === "medium" ? el("span", { class: "flag medium" }, "Check this") : conf === "low" ? el("span", { class: "flag low" }, "AI unsure") : null),
+        el("p", { class: `med-plain${plain ? "" : " empty"}` }, plain || MISSING),
+        m.as_written ? el("p", { class: "written" }, `Written as “${m.as_written}”`) : null,
+        m.doubts ? el("p", { class: "doubt" }, m.doubts) : null),
+      el("details", { class: "med-edit" },
+        el("summary", {}, "Edit"),
+        el("div", { class: "fields" },
+          el("div", { class: "wide" }, field("Medicine name", bindText(m, "medicine_name"))),
+          el("div", { class: "wide" }, field("Name as spoken in Hindi", bindText(m, "name_hindi", { lang: "hi" }))),
+          field("Strength", bindText(m, "strength", { placeholder: "500 mg" })),
+          field("Form", bindSelect(m, "form", FORMS.map((f) => [f, f]))),
+          field("Dose each time", bindText(m, "dose", { placeholder: "1, 1/2, 5 ml" })),
+          field("Times a day", bindNumber(m, "times_per_day", { max: 12 })),
+          el("div", { class: "full" }, el("label", {}, "When in the day"), times),
+          field("Food", bindSelect(m, "food", FOOD)),
+          el("div", {}, el("label", {}, "Only if needed"),
+            el("label", { class: "chip" }, el("input", { type: "checkbox", checked: !!m.as_needed, onchange: (e) => { m.as_needed = e.target.checked; changed(m); } }), "SOS")),
+          field("For how long", bindNumber(m, "duration_number")),
+          field("Unit", bindSelect(m, "duration_unit", UNITS)),
+          el("div", { class: "wide" }, field("Other instructions", bindText(m, "other_instructions"))),
+          el("div", { class: "wide" }, field("अन्य निर्देश", bindText(m, "other_instructions_hindi", { lang: "hi" }))),
+          el("div", { class: "full" }, el("button", { class: "small danger", type: "button", onclick: remove }, "Remove this medicine")))));
+    m._li = li;
+    box.append(li);
   });
 }
 
@@ -353,6 +439,8 @@ $("addMed").onclick = () => {
   data.medicines.push({ as_written: "", medicine_name: "", name_hindi: "", strength: "", form: "tablet", dose: "1", frequency_as_written: "", times_per_day: 0, times_of_day: [], as_needed: false, food: "not_specified", duration_number: 0, duration_unit: "days", other_instructions: "", other_instructions_hindi: "", confidence: "high", doubts: "", _checked: false });
   renderMeds();
   onTableChange();
+  const last = $("meds").lastElementChild?.querySelector("details");
+  if (last) { last.open = true; last.querySelector("input")?.focus(); }
 };
 for (const id of ["advice", "adviceHi", "followUp", "followUpHi"]) $(id).addEventListener("input", onTableChange);
 
@@ -362,7 +450,7 @@ $("makeScripts").onclick = () => {
   const unnamed = data.medicines.findIndex((m) => !m.medicine_name.trim());
   if (unnamed >= 0) return (status.textContent = `Medicine ${unnamed + 1} has no name.`);
   const unchecked = data.medicines.findIndex((m) => !m._checked);
-  if (unchecked >= 0) return (status.textContent = `Tick “checked” on medicine ${unchecked + 1} first.`);
+  if (unchecked >= 0) return (status.textContent = `Tick medicine ${unchecked + 1} once you’ve checked it against the slip.`);
   const noTiming = data.medicines.findIndex((m) => !m.as_needed && !m.times_per_day && !(m.times_of_day || []).length);
   if (noTiming >= 0) return (status.textContent = `Medicine ${noTiming + 1}: set how many times a day, or tick SOS.`);
   status.textContent = "";
@@ -374,15 +462,26 @@ $("makeScripts").onclick = () => {
   $("enScript").value = en;
   $("hiScript").value = hi;
   for (const c of ["c1", "c2", "c3"]) $(c).checked = false;
+  $("stamp").classList.add("hidden");
+  resetApprove();
+  setStep(3);
   $("scriptCard").classList.remove("hidden");
   $("shareCard").classList.add("hidden");
   $("scriptCard").scrollIntoView({ behavior: "smooth" });
 };
 
 // ---------- step 3: approve ----------
+function resetApprove() {
+  $("approveBtn").disabled = false;
+  $("approveBtn").textContent = "Approve and create link";
+}
+for (const c of ["c1", "c2", "c3"]) $(c).addEventListener("change", () => { if (!token) resetApprove(); });
 for (const id of ["enScript", "hiScript"]) $(id).addEventListener("input", () => {
   token = null;
+  resetApprove();
   $("shareCard").classList.add("hidden");
+  $("stamp").classList.add("hidden");
+  setStep(3);
   for (const c of ["c1", "c2", "c3"]) $(c).checked = false;
 });
 // Preview with the natural voice the patient will hear; fall back to this device's own voice.
@@ -438,8 +537,18 @@ $("approveBtn").onclick = async () => {
     $("openLink").href = url;
     $("expiry").textContent = new Date(out.exp * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
     $("mp3Row").classList.toggle("hidden", !config.tts);
+    $("approveBtn").disabled = true;
+    $("approveBtn").textContent = "Approved";
+    // The doctor's stamp lands on the slip.
+    const stamp = $("stamp");
+    $("stampDate").textContent = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    stamp.classList.remove("hidden", "thump");
+    void stamp.offsetWidth; // restart the animation
+    stamp.classList.add("thump");
+    setStep(4);
     $("shareCard").classList.remove("hidden");
-    $("shareCard").scrollIntoView({ behavior: "smooth" });
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(() => $("shareCard").scrollIntoView({ behavior: reduce ? "auto" : "smooth" }), reduce ? 0 : 900);
   } catch (e) {
     status.textContent = e.message;
   }
@@ -496,7 +605,10 @@ $("newRx").onclick = () => {
   $("camera").value = "";
   $("gallery").value = "";
   $("editorWrap").classList.add("hidden");
-  for (const id of ["reviewCard", "scriptCard", "shareCard"]) $(id).classList.add("hidden");
+  for (const id of ["reviewCard", "scriptCard", "shareCard", "stamp"]) $(id).classList.add("hidden");
+  unfoldScan();
+  resetApprove();
+  setStep(1);
   $("readStatus").textContent = "";
   updateReadBtn();
   window.scrollTo({ top: 0, behavior: "smooth" });
