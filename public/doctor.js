@@ -244,7 +244,9 @@ $("readBtn").onclick = async () => {
   const btn = $("readBtn");
   const status = $("readStatus");
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Reading the handwriting… usually 10–30 seconds';
+  const spin = document.createElement("span");
+  spin.className = "spinner";
+  btn.replaceChildren(spin, " Reading the handwriting… usually 10–30 seconds");
   status.textContent = "";
   try {
     let body, refUrl = null;
@@ -535,7 +537,7 @@ $("approveBtn").onclick = async () => {
   if (!["c1", "c2", "c3"].every((c) => $(c).checked)) return (status.textContent = "Tick all three checks to approve.");
   status.textContent = "";
   try {
-    const out = await api("/api/approve", { en, hi, approved: true, days: Number($("days").value) });
+    const out = await api("/api/approve", { en, hi, approved: true, days: Math.min(90, Math.max(1, Math.round(Number($("days").value)) || 30)) });
     token = out.token;
     const url = `${location.origin}/listen#${token}`;
     $("link").textContent = url;

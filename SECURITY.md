@@ -39,6 +39,26 @@ text travels inside the patient link itself, and the server only checks the link
   headers the hosting platform sets, so a faked `X-Forwarded-For` doesn't get around them.
 - No npm dependencies at runtime.
 
+**Injection**
+
+There is no database, so there is nothing for SQL injection to reach. The injection risks that do
+apply are handled like this:
+- *Request tampering:* every API call is checked against a strict list of allowed fields, types and
+  lengths. Unknown fields (including `__proto__`) are rejected, and only JSON is accepted.
+- *Script injection (XSS):* the page never turns text into HTML. Everything is inserted as plain text,
+  and the browser enforces this with Trusted Types (`require-trusted-types-for 'script'`), plus a
+  strict Content Security Policy with no inline or third-party scripts.
+- *Fake files:* an uploaded "image" must start with the real JPEG, PNG, WebP or GIF signature.
+  SVG and other formats that can carry scripts are refused.
+- *Hidden characters:* invisible control characters and text-direction overrides are removed from
+  all text, so a medicine name can't display differently from what it really says.
+- *Prompt injection:* the AI is told that everything on the prescription is data, never
+  instructions. Its answer is rebuilt field by field from the expected shape, with values checked
+  and lengths capped, before anyone sees it.
+- *Log injection:* anything written to the server log is flattened to one short line.
+
+Run `npm test` to check all of the above (17 automated security tests).
+
 **AI**
 - Gemini reads the prescription and is told not to return names, phone numbers or other identifiers.
 - Every medicine must be ticked by the doctor, and three checks confirmed, before a link can be made.

@@ -7,8 +7,6 @@ let lang = "hi";
 let speaking = false; // device-voice playback (no pause support), as opposed to the <audio> player
 const audioCache = {};
 
-const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
-const PAUSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></svg>';
 
 const UI = {
   hi: {
@@ -93,7 +91,8 @@ function renderScript(text, l) {
 function setButton(state) {
   const t = UI[lang];
   const btn = $("play");
-  btn.innerHTML = state === "playing" ? PAUSE_ICON : PLAY_ICON;
+  $("iconPlay").classList.toggle("hidden", state === "playing");
+  $("iconPause").classList.toggle("hidden", state !== "playing");
   btn.setAttribute("aria-label", state === "playing" ? t.pause : t.play);
   $("playLabel").textContent = state === "playing" ? t.pause : state === "ended" ? t.again : t.play;
 }
