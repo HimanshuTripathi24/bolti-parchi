@@ -32,7 +32,7 @@ The AI is never the last word. The doctor must tick every medicine as checked an
 - **No database.** The server stores no images, text or patient data. The approved script lives inside the patient link itself, signed so nobody can change it, and the link expires (30 days by default).
 - Photos and text go to the Gemini API to be read. **Turn on billing for the key's Google Cloud project before using real patient data.** On the free tier, Google may use what you send to improve its products, and people may review it. On the paid tier it doesn't.
 - Crop out names and don't type names or phone numbers. The AI is also told not to return any identifying details.
-- The doctor side needs a clinic password. Pages are not indexed by search engines.
+- The doctor side needs a clinic password, which is swapped for a 12-hour signed session at sign-in. Repeated wrong passwords lock the address out for 15 minutes. A deployment without a strong password and link secret switches the doctor side off rather than leaving it open. See [SECURITY.md](SECURITY.md) for the full picture.
 - Limitation: a link can't be revoked before it expires. Anyone who has the link can listen, so share it only with the patient.
 
 > This is a research prototype (see the study protocol). Get IEC and data-security approval and test it on 10–15 de-identified prescriptions before using it with patients.
@@ -87,6 +87,7 @@ A scan usually takes 10–30 seconds. On the free tier, Google gives lower prior
 | `api/index.js`, `vercel.json` | Vercel function and settings |
 | `lib/extract.js` | The Gemini prompt, output format and model fallback for reading prescriptions |
 | `lib/tokens.js` | Signed, expiring patient links |
+| `lib/auth.js` | Sign-in, sessions, lockout, safe-setup checks |
 | `lib/tts.js` | Natural voice with Gemini text-to-speech |
 | `public/index.html`, `doctor.js` | Doctor screens: upload, crop, review, approve, share |
 | `public/scripts.js` | English and Hindi script templates |

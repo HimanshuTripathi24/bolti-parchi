@@ -11,7 +11,9 @@ const FOOD = [["not_specified", "Not specified"], ["before_food", "Before food"]
 const UNITS = [["days", "days"], ["weeks", "weeks"], ["months", "months"], ["until_finished", "until finished"], ["continue", "continue (no end)"], ["not_specified", "not specified"]];
 
 let config = {};
-let password = sessionStorage.getItem("bp-pw") || "";
+// A signed 12-hour session from the server. The clinic password itself is never stored in the browser.
+let session = sessionStorage.getItem("bp-session") || "";
+sessionStorage.removeItem("bp-pw"); // clean up what older versions stored
 let mode = "photo";
 let data = null; // extraction result being edited
 let token = null;
@@ -20,12 +22,13 @@ let token = null;
 async function api(path, body, { raw = false } = {}) {
   const res = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
-    headers: { "Content-Type": "application/json", "x-app-password": password },
+    headers: { "Content-Type": "application/json", ...(session ? { Authorization: `Bearer ${session}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 401) {
-    sessionStorage.removeItem("bp-pw");
-    showLogin("Please sign in again.");
+  if (res.status === 401 && path !== "/api/login") {
+    session = "";
+    sessionStorage.removeItem("bp-session");
+    showLogin("Your session ended. Please sign in again.");
     throw new Error("Wrong password.");
   }
   if (!res.ok) {
@@ -47,7 +50,7 @@ function setStep(n) {
 }
 
 $("signOut").onclick = () => {
-  sessionStorage.removeItem("bp-pw");
+  sessionStorage.removeItem("bp-session");
   location.reload();
 };
 
@@ -62,19 +65,21 @@ async function init() {
   config = await api("/api/config");
   $("demoBanner").classList.toggle("hidden", !config.demo);
   $("days").value = config.linkDays;
-  if (config.passwordRequired && !password) return showLogin();
+  if (config.setupError) return showLogin("This site isn't set up securely yet, so sign-in is switched off. Ask the administrator.");
+  if (config.passwordRequired && !session) return showLogin();
   if (config.passwordRequired) {
-    try { await api("/api/login", {}); } catch { return; }
+    try { await api("/api/session"); } catch { return; }
     $("signOut").classList.remove("hidden");
   }
   $("app").classList.remove("hidden");
 }
 
 $("loginBtn").onclick = async () => {
-  password = $("pw").value;
   try {
-    await api("/api/login", {});
-    sessionStorage.setItem("bp-pw", password);
+    const out = await api("/api/login", { password: $("pw").value });
+    $("pw").value = "";
+    session = out.session;
+    sessionStorage.setItem("bp-session", session);
     $("signOut").classList.remove("hidden");
     $("login").classList.add("hidden");
     $("app").classList.remove("hidden");
